@@ -42,8 +42,8 @@ class Neuron:
             self.activation_fn = AFs.sigmoid
             self.af_name = "sigmoid"
 
-    def __repr__(self):
-        return self.af_name
+    # def __repr__(self):
+    #     return self.af_name
 
 
 class Layer:
@@ -52,11 +52,10 @@ class Layer:
         self.number_of_nodes = num_nodes
         self.neuron_list = [Neuron(afname) for neuron in range(num_nodes)]
 
-    def __repr__(self):
-        return "Layer with " + str(self.number_of_nodes) + " neurons: " + str(self.neuron_list)
+    # def __repr__(self):
+    #     return "Layer with " + str(self.number_of_nodes) + " neurons: " + str(self.neuron_list)
 
     def activate_neuron(self, index, dp):
-        print(self.neuron_list[index])
         return self.neuron_list[index].get_af(dp)
 
     def change_activation_fn(self, index, new_fn):
@@ -72,7 +71,7 @@ class NeuralNetwork:
             if n == 0:
                 self.input_layer = Layer(args[n], "identity")
             elif n == len(args) - 1:
-                self.output_layer = Layer(args[n], "step")
+                self.output_layer = Layer(args[n], "sigmoid")
             else:
                 self.hidden_layer.append(Layer(args[n], "sigmoid"))
 
@@ -84,24 +83,44 @@ class NeuralNetwork:
         self.weights.append(np.random.rand(self.output_layer.number_of_nodes, prev_layer.number_of_nodes))
 
     def feed_forward(self):
-        inputs = np.array([3, 1, 2])
+        inputs = np.array([3, 1 ,2])
 
-        print(self.hidden_layer[0].activate_neuron(0, np.dot(self.weights[0], inputs)))
+        # create list = neurons
+        currentMatrix = (self.hidden_layer[0].activate_neuron(0, np.dot(self.weights[0], inputs)))
 
-        #2nd layer!!
+        # We can get rid of nulls by putting htings in an array ! ! !
+        # currentMatrix = np.array([self.hidden_layer[0].activate_neuron(0, np.dot(self.weights[0], inputs))])
+        # print(currentMatrix.shape)
+        # print (inputs.shape)
+        # print(self.hidden_layer[0].shape)
+
+        prev_matrix = currentMatrix
 
 
+        #for loop - check which weight matrix to multiply with
+        if self.hidden_layer.__len__() > 1:
+            for i in range(1, self.weights.__len__()):
+
+                currentMatrix = self.hidden_layer[i].activate_neuron(0, np.dot(self.weights[i], prev_matrix))
+
+                prev_matrix = currentMatrix
+
+        print(self.output_layer.activate_neuron(0, np.dot(self.weights[1], currentMatrix)))
+
+        # a = self.output_layer.activate_neuron(0, np.dot(self.weights[1], currentMatrix) )
+        #
+        # print(self.weights[1].shape, currentMatrix.shape, a.shape)
 
     def __repr__(self):
         return "Input Layer: " + str(self.input_layer) + "\n" + "Hidden layers: " + \
                str(self.hidden_layer) + "\n" + "Output Layers: " + str(self.output_layer)
 
 
-nn = NeuralNetwork(3, 2, 2)
+nn = NeuralNetwork(3, 2,2)
 nn.assign_weights()
 
-
 nn.feed_forward()
+
 
 #print(nn.input_layer.activate_neuron(0, 2), nn.input_layer.activate_neuron(1, 3), nn.input_layer.activate_neuron(2, 2))
 #nn.input_layer.change_activation_fn(0, "step")
