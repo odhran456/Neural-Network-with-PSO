@@ -72,9 +72,9 @@ class NeuralNetwork:
             if n == 0:
                 self.input_layer = Layer(args[n], "identity")
             elif n == len(args) - 1:
-                self.output_layer = Layer(args[n], "identity")
+                self.output_layer = Layer(args[n], "sigmoid")
             else:
-                self.hidden_layer.append(Layer(args[n], "identity"))
+                self.hidden_layer.append(Layer(args[n], "sigmoid"))
 
     def assign_weights(self):
         prev_layer = self.input_layer
@@ -84,42 +84,52 @@ class NeuralNetwork:
         self.weights.append(np.random.rand(self.output_layer.number_of_nodes, prev_layer.number_of_nodes))
 
     def feed_forward(self):
-        inputs = np.array([1, 1, 1])
-        
+        inputs = np.array([0.8, 0.85])
+        actual_output = np.array([.71, .75])
+
         print(self.weights)
-        
+
         # This makes the column vector of node values for the current layer. It takes the initial layer (inputs)
         # and does the dot product with the first array of weights and that gives the next layer on node values
-        
+
         currentMatrix = self.hidden_layer[0].activate_neuron(0, np.dot(self.weights[0], inputs))
-        
+
         # It's put into a numpy array as in the list it had a null column (shape (n, ) ), which is bad,
         # so remake into a numpy nd-array and reshape it into a column vector
-        tempMaptrix = np.array([currentMatrix]).transpose()
+        tempMatrix = np.array([currentMatrix]).transpose()
 
-        prev_matrix = tempMaptrix
+        prev_matrix = tempMatrix
         # print(prev_matrix)
 
-        #for loop - check which weight matrix to multiply with
+        # for loop - check which weight matrix to multiply with
 
         if self.hidden_layer.__len__() > 1:
             for i in range(1, self.weights.__len__() - 1):
-                tempMaptrix = self.hidden_layer[i].activate_neuron(0, np.dot(self.weights[i], prev_matrix))
-                prev_matrix = tempMaptrix
+                tempMatrix = self.hidden_layer[i].activate_neuron(0, np.dot(self.weights[i], prev_matrix))
+                prev_matrix = tempMatrix
 
-        output_nodes = self.output_layer.activate_neuron(0, np.dot(self.weights[-1], tempMaptrix))
+        estimated_output = self.output_layer.activate_neuron(0, np.dot(self.weights[-1], tempMatrix))
         
-        return output_nodes
-        
+        # print(estimated_output)
 
+        # calc MSE -> sqrt( (sum of squares) / (num elements)
+        sum = 0
+        for i in range(0, estimated_output.shape[0]):
+            sum = sum + ((actual_output[i] - estimated_output[i])**2)
 
+        mse = np.sqrt(sum / estimated_output.shape[0])
+
+        # This is a numpy array lol
+        # print(mse)
+
+        return mse[0]
 
     def __repr__(self):
         return "Input Layer: " + str(self.input_layer) + "\n" + "Hidden layers: " + \
                str(self.hidden_layer) + "\n" + "Output Layers: " + str(self.output_layer)
 
 
-nn = NeuralNetwork(3, 2, 2, 2)
+nn = NeuralNetwork(2, 2, 2)
 
 nn.assign_weights()
 
