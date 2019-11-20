@@ -1,4 +1,5 @@
 import numpy as np
+import random
 
 
 class AFs:
@@ -87,7 +88,7 @@ class NeuralNetwork:
         inputs = np.array([0.8, 0.85])
         actual_output = np.array([.71, .75])
 
-        print(self.weights)
+        # print(self.weights)
 
         # This makes the column vector of node values for the current layer. It takes the initial layer (inputs)
         # and does the dot product with the first array of weights and that gives the next layer on node values
@@ -124,6 +125,32 @@ class NeuralNetwork:
 
         return mse[0]
 
+    # So i think the position matrix is just the weight matrix. Then, each particle (insect) in the swarm
+    # has its own neural network, so its own weights matrix, position, velocity matrix etc.
+
+    positions = []
+
+    def PSO(self):
+
+        swarmsize = 15
+        alpha = 0.8
+        beta = 2
+        gamma = 2
+        delta = 0.1
+        stepsize = 1
+        best = 5
+
+        # is there now 15 particles/insects each with their own position matrix?
+        for particle in range(0, swarmsize - 1):
+            # Make a flat numpy array of the weight matrices in an array called positions
+            positions = [num for weight in self.weights for num in weight]
+            new_posn = np.array([positions]).flatten()
+
+        velocities = []
+
+        for i in range(0, new_posn.__len__()):
+            velocities.append(round(random.uniform(-1, 1), 3))
+
     def __repr__(self):
         return "Input Layer: " + str(self.input_layer) + "\n" + "Hidden layers: " + \
                str(self.hidden_layer) + "\n" + "Output Layers: " + str(self.output_layer)
@@ -134,3 +161,5 @@ nn = NeuralNetwork(2, 2, 2)
 nn.assign_weights()
 
 nn.feed_forward()
+
+nn.PSO()
