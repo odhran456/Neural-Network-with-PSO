@@ -72,7 +72,7 @@ class Particle:
     position = []
     velocity = []
     personalBest = 100
-    group
+
 
 
 class NeuralNetwork:
@@ -81,6 +81,8 @@ class NeuralNetwork:
         self.hidden_layer = list()
         self.weights = list()
         self.new_weights_attempt = list()
+        # GLOBAL VARIABLE
+        self.length_weight_matrix=0
         for n in range(len(args)):
             if n == 0:
                 self.input_layer = Layer(args[n], "identity")
@@ -97,13 +99,23 @@ class NeuralNetwork:
         self.weights.append(np.random.rand(self.output_layer.number_of_nodes, prev_layer.number_of_nodes))
         #print(self.weights)
 
+
     def assign_weights_from_pso(self, particle):
         # are the rows & columns being reshpaed in the right way ?? ??? ?
+        self.new_weights_attempt = []
         self.new_weights_attempt.append(np.array([particle[0].position, particle[1].position, particle[2].position]).reshape(3,1))
         self.new_weights_attempt.append(np.array([particle[3].position, particle[4].position, particle[5].position]).reshape(1,3))
         # print(self.new_weights_attempt[0].shape)
         self.weights = self.new_weights_attempt
-        #print(self.weights)
+
+        self.length_weight_matrix=0
+        for i in range(0, self.weights.__len__()):
+            self.length_weight_matrix = self.length_weight_matrix + self.weights[i].shape[0]*self.weights[i].shape[1]
+
+
+        # flattening_weight = [num for weight in self.weights for num in weight]
+        # weight_flattened = np.array([flattening_weight]).flatten()
+
         return self.weights
 
 
@@ -164,9 +176,14 @@ class NeuralNetwork:
 
         particles = [Particle() for n in range(numOfParticles)]
 
-            # Make a flat numpy array of the weight matrices in an array called positions
-        flattening_weight = [num for weight in self.weights for num in weight]
-        weight_flattened = np.array([flattening_weight]).flatten()
+
+        # Make a flat numpy array of the weight matrices in an array called positions
+        # flattening_weight = [num for weight in self.weights for num in weight]
+        # weight_flattened = np.array([flattening_weight]).flatten()
+
+        # flattening_weight = [num for weight in self.weights for num in weight]
+        # weight_flattened = np.array([flattening_weight]).flatten()
+
 
         velocities = []
         #for i in range(0, weight_flattened.__len__()):
@@ -178,17 +195,26 @@ class NeuralNetwork:
 
             # why do we create random weights at the start of feed forward only to never use them and then create random
             # positions which we put into the nn as weights?? Is it just to test the feed fwd?
+
+            #TODO: This should use self.length_weight_matrix and not the number of insects!!!
             for particle in range(0,particles.__len__()):
                 particles[particle].position = round(random.uniform(-1, 1), 3)
                 particles[particle].velocity = round(random.uniform(-1, 1), 3)
-            # Get the mean square error for each of these particle
+
             # print(particles[0].position)
             self.assign_weights_from_pso(particles)
 
+
+            # Get the mean square error for each of these particle
             a = self.feed_forward()
+
+            # print('--------------------')
+            # print(a)
+            # print(particle)
+            # print(particles[particle].personalBest)
             #record personal best of particle
-            if(a < particle.personalBest):
-                particle.personalBest = a
+            if(a < particles[particle].personalBest):
+                particles[particle].personalBest = a
 
             #compare mse with current best
             if( a< best):
@@ -196,6 +222,8 @@ class NeuralNetwork:
             print(best)
 
 
+        # informant_decider = [ np.random.rand(1, numOfParticles) ]
+        # print(informant_decider)
 
 
     def __repr__(self):
