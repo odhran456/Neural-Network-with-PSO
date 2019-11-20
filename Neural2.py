@@ -63,12 +63,24 @@ class Layer:
     def change_activation_fn(self, index, new_fn):
         self.neuron_list[index].change_af(new_fn)
 
+class Particle:
+    def __init__(self):
+        self.position = []
+        self.velocity = []
+        self.personalBest = 100
+
+    position = []
+    velocity = []
+    personalBest = 100
+    group
+
 
 class NeuralNetwork:
 
     def __init__(self, *args):  # e.g.: NN(3,4,5,6,2)
         self.hidden_layer = list()
         self.weights = list()
+        self.new_weights_attempt = list()
         for n in range(len(args)):
             if n == 0:
                 self.input_layer = Layer(args[n], "identity")
@@ -83,10 +95,21 @@ class NeuralNetwork:
             self.weights.append(np.random.rand(layer.number_of_nodes, prev_layer.number_of_nodes))
             prev_layer = layer
         self.weights.append(np.random.rand(self.output_layer.number_of_nodes, prev_layer.number_of_nodes))
+        #print(self.weights)
+
+    def assign_weights_from_pso(self, particle):
+        # are the rows & columns being reshpaed in the right way ?? ??? ?
+        self.new_weights_attempt.append(np.array([particle[0].position, particle[1].position, particle[2].position]).reshape(3,1))
+        self.new_weights_attempt.append(np.array([particle[3].position, particle[4].position, particle[5].position]).reshape(1,3))
+        # print(self.new_weights_attempt[0].shape)
+        self.weights = self.new_weights_attempt
+        #print(self.weights)
+        return self.weights
+
 
     def feed_forward(self):
-        inputs = np.array([0.8, 0.85])
-        actual_output = np.array([.71, .75])
+        inputs = np.array([0.8])
+        actual_output = np.array([.71])
 
         # print(self.weights)
 
@@ -110,8 +133,8 @@ class NeuralNetwork:
                 prev_matrix = tempMatrix
 
         estimated_output = self.output_layer.activate_neuron(0, np.dot(self.weights[-1], tempMatrix))
-        
-        # print(estimated_output)
+
+        #print(estimated_output)
 
         # calc MSE -> sqrt( (sum of squares) / (num elements)
         sum = 0
@@ -128,38 +151,64 @@ class NeuralNetwork:
     # So i think the position matrix is just the weight matrix. Then, each particle (insect) in the swarm
     # has its own neural network, so its own weights matrix, position, velocity matrix etc.
 
-    positions = []
 
-    def PSO(self):
+    def PSO(self, numOfParticles):
 
-        swarmsize = 15
+        insects = 15
         alpha = 0.8
         beta = 2
         gamma = 2
         delta = 0.1
         stepsize = 1
-        best = 5
+        best = 100
 
-        # is there now 15 particles/insects each with their own position matrix?
-        for particle in range(0, swarmsize - 1):
+        particles = [Particle() for n in range(numOfParticles)]
+
             # Make a flat numpy array of the weight matrices in an array called positions
-            positions = [num for weight in self.weights for num in weight]
-            new_posn = np.array([positions]).flatten()
+        flattening_weight = [num for weight in self.weights for num in weight]
+        weight_flattened = np.array([flattening_weight]).flatten()
 
         velocities = []
+        #for i in range(0, weight_flattened.__len__()):
+            #velocities.append(round(random.uniform(-1, 1), 3))
 
-        for i in range(0, new_posn.__len__()):
-            velocities.append(round(random.uniform(-1, 1), 3))
+
+        for insect in range(0, insects - 1):
+            # change pos and vel for each particle to random
+
+            # why do we create random weights at the start of feed forward only to never use them and then create random
+            # positions which we put into the nn as weights?? Is it just to test the feed fwd?
+            for particle in range(0,particles.__len__()):
+                particles[particle].position = round(random.uniform(-1, 1), 3)
+                particles[particle].velocity = round(random.uniform(-1, 1), 3)
+            # Get the mean square error for each of these particle
+            # print(particles[0].position)
+            self.assign_weights_from_pso(particles)
+
+            a = self.feed_forward()
+            #record personal best of particle
+            if(a < particle.personalBest):
+                particle.personalBest = a
+
+            #compare mse with current best
+            if( a< best):
+                best = a
+            print(best)
+
+
+
 
     def __repr__(self):
         return "Input Layer: " + str(self.input_layer) + "\n" + "Hidden layers: " + \
                str(self.hidden_layer) + "\n" + "Output Layers: " + str(self.output_layer)
 
 
-nn = NeuralNetwork(2, 2, 2)
+nn = NeuralNetwork(1, 3, 1)
 
 nn.assign_weights()
 
 nn.feed_forward()
 
-nn.PSO()
+nn.PSO(15)
+
+#nn.assign_weights_from_pso()
