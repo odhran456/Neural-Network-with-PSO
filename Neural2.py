@@ -68,10 +68,15 @@ class Particle:
         self.position = []
         self.velocity = []
         self.personalBest = 100
+        self.personalBestPosition = []
+        self.informantIndex = -1
+
 
     position = []
     velocity = []
     personalBest = 100
+    personalBestPosition = []
+    informantIndex = -1
 
 
 
@@ -83,6 +88,7 @@ class NeuralNetwork:
         self.new_weights_attempt = list()
         # GLOBAL VARIABLE
         self.length_weight_matrix=0
+        self.currentWeightList = []
         for n in range(len(args)):
             if n == 0:
                 self.input_layer = Layer(args[n], "identity")
@@ -116,12 +122,16 @@ class NeuralNetwork:
         print(self.weights)
 
 
-    def assign_weights_from_pso(self, particle):
+    def assign_weights_from_pso(self, position):
         # are the rows & columns being reshpaed in the right way ?? ??? ?
         self.new_weights_attempt = []
-        self.new_weights_attempt.append(np.array([particle[0].position, particle[1].position, particle[2].position]).reshape(3,1))
-        self.new_weights_attempt.append(np.array([particle[3].position, particle[4].position, particle[5].position]).reshape(1,3))
+        self.new_weights_attempt.append(np.array([position[0], position[1], position[2]]).reshape(3,1))
+        self.new_weights_attempt.append(np.array([position[3], position[4], position[5]]).reshape(1,3))
         self.weights = self.new_weights_attempt
+
+
+
+        #print(self.weights)
 
         return self.weights
 
@@ -170,7 +180,6 @@ class NeuralNetwork:
     # So i think the position matrix is just the weight matrix. Then, each particle (insect) in the swarm
     # has its own neural network, so its own weights matrix, position, velocity matrix etc.
 
-
     def PSO(self, numOfParticles):
 
         insects = 15
@@ -179,59 +188,127 @@ class NeuralNetwork:
         gamma = 2
         delta = 0.1
         stepsize = 1
+
+        # Global fest fitness value found
+
         best = 100
+        bestPosition = []
 
         particles = [Particle() for n in range(numOfParticles)]
 
 
         # Make a flat numpy array of the weight matrices in an array called positions
-        # flattening_weight = [num for weight in self.weights for num in weight]
-        # weight_flattened = np.array([flattening_weight]).flatten()
-
-        # flattening_weight = [num for weight in self.weights for num in weight]
-        # weight_flattened = np.array([flattening_weight]).flatten()
-
 
         velocities = []
         #for i in range(0, weight_flattened.__len__()):
             #velocities.append(round(random.uniform(-1, 1), 3))
 
+        # change pos and vel for each particle to random
+        for particle in range(0,particles.__len__()):
+            for position in range(0, self.weight_matrix_num_nodes ):
+                particles[particle].position.append(round(random.uniform(-1, 1), 3))
+                particles[particle].velocity.append(round(random.uniform(-1, 1), 3))
+        #print(particles[0].position)
+        #print(particles.__len__())
 
-        for insect in range(0, insects - 1):
-            # change pos and vel for each particle to random
 
-            # why do we create random weights at the start of feed forward only to never use them and then create random
-            # positions which we put into the nn as weights?? Is it just to test the feed fwd?
 
-            # TODO: This should use self.length_weight_matrix and not the number of insects!!!
-
-            for particle in range(0,self.weight_matrix_num_nodes):
-                particles[particle].position = round(random.uniform(-1, 1), 3)
-                particles[particle].velocity = round(random.uniform(-1, 1), 3)
-
-            # print(particles[0].position)
-            self.assign_weights_from_pso(particles)
-            #print(self.weights)
+        for particle in range(particles.__len__()):
+            #set weights by sending positions to pso
+            self.assign_weights_from_pso(particles[particle].position)
+            self.currentWeightList = [particles[particle].position]
 
             # Get the mean square error for each of these particle
-            a = self.feed_forward()
-
-            # print('--------------------')
+            currentMSE = self.feed_forward()
+            # currentPosition = self.weights
             # print(a)
-            # print(particle)
-            # print(particles[particle].personalBest)
+            #print(self.weights)
+
             #record personal best of particle
-            if(a < particles[particle].personalBest):
-                particles[particle].personalBest = a
+            if(currentMSE < particles[particle].personalBest):
+                particles[particle].personalBest = currentMSE
+                particles[particle].personalBestPosition = self.currentWeightList
+
 
             #compare mse with current best
-            if( a< best):
-                best = a
+            if( currentMSE< best):
+                best = currentMSE
+                bestPosition = self.currentWeightList
+
             #print(best)
+        #copy array
+        tempParticles = particles
+
+        firstQuarter= int(particles.__len__() * 0.25)
+        secondQuarter = firstQuarter *2
+        thirdQuarter = particles.__len__() - firstQuarter
+
+        group1 = []
+        group2 = []
+        group3 = []
+        group4 = []
 
 
-        # informant_decider = [ np.random.rand(1, numOfParticles) ]
-        # print(informant_decider)
+        group1 = tempParticles[0:firstQuarter]
+        group2 = tempParticles[firstQuarter:secondQuarter]
+        group3 = tempParticles[secondQuarter:thirdQuarter]
+        group4 = tempParticles[thirdQuarter:particles.__len__()]
+
+        groupList = [group1, group2, group3, group4]
+
+       # print(group1[0].personalBest, group1[1].personalBest, group1[2].personalBest)
+
+        groupInformantIndex = -1
+
+        group1MSE = 10
+        for g in range(group1.__len__()):
+            if group1[g].personalBest < group1MSE:
+                groupInformantIndex = g
+        for g in range(group1.__len__()):
+            group1[g].informantIndex = groupInformantIndex
+
+        i = group1[0].informantIndex
+        print(group1[i].personalBestPosition)
+        print("--------------------")
+
+        group1MSE = 10
+        for g in range(group2.__len__()):
+            if group2[g].personalBest < group1MSE:
+                groupInformantIndex = g
+        for g in range(group1.__len__()):
+            group2[g].informantIndex = groupInformantIndex
+
+        i = group2[0].informantIndex
+        print(group2[i].personalBestPosition)
+        print("--------------------")
+
+        group1MSE = 10
+        for g in range(group3.__len__()):
+            if group3[g].personalBest < group1MSE:
+                groupInformantIndex = g
+        for g in range(group1.__len__()):
+            group3[g].informantIndex = groupInformantIndex
+
+        i = group3[0].informantIndex
+        print(group3[i].personalBestPosition)
+        print("--------------------")
+
+        group1MSE = 10
+        for g in range(group4.__len__()):
+            if group4[g].personalBest < group1MSE:
+                groupInformantIndex = g
+        for g in range(group1.__len__()):
+            group4[g].informantIndex = groupInformantIndex
+
+        i = group4[0].informantIndex
+        print(group4[i].personalBestPosition)
+        print("--------------------")
+        #print(group1MSE, group1BestPosition)
+
+
+        #for particle in range(particles.__len__()):
+
+
 
 
     def __repr__(self):
