@@ -91,13 +91,29 @@ class NeuralNetwork:
             else:
                 self.hidden_layer.append(Layer(args[n], "sigmoid"))
 
+        #make list of numbers
+        num_nodes_hidden_layers = []
+        for hidden_layer in range(0, self.hidden_layer.__len__()):
+            num_nodes_hidden_layers.append(self.hidden_layer[hidden_layer].number_of_nodes)
+
+        #fill list of numbers with values of hidden layers
+        self.weight_matrix_num_nodes = 0
+        self.weight_matrix_num_nodes = self.input_layer.number_of_nodes*num_nodes_hidden_layers[0]
+
+        if num_nodes_hidden_layers.__len__() > 1:
+            for i in range(0, num_nodes_hidden_layers.__len__() - 1):
+                self.weight_matrix_num_nodes = self.weight_matrix_num_nodes + num_nodes_hidden_layers[i]*num_nodes_hidden_layers[i + 1]
+
+        self.weight_matrix_num_nodes = self.weight_matrix_num_nodes + self.output_layer.number_of_nodes*num_nodes_hidden_layers[-1]
+
+
     def assign_weights(self):
         prev_layer = self.input_layer
         for layer in self.hidden_layer:
             self.weights.append(np.random.rand(layer.number_of_nodes, prev_layer.number_of_nodes))
             prev_layer = layer
         self.weights.append(np.random.rand(self.output_layer.number_of_nodes, prev_layer.number_of_nodes))
-        #print(self.weights)
+        print(self.weights)
 
 
     def assign_weights_from_pso(self, particle):
@@ -105,16 +121,7 @@ class NeuralNetwork:
         self.new_weights_attempt = []
         self.new_weights_attempt.append(np.array([particle[0].position, particle[1].position, particle[2].position]).reshape(3,1))
         self.new_weights_attempt.append(np.array([particle[3].position, particle[4].position, particle[5].position]).reshape(1,3))
-        # print(self.new_weights_attempt[0].shape)
         self.weights = self.new_weights_attempt
-
-        self.length_weight_matrix=0
-        for i in range(0, self.weights.__len__()):
-            self.length_weight_matrix = self.length_weight_matrix + self.weights[i].shape[0]*self.weights[i].shape[1]
-
-
-        # flattening_weight = [num for weight in self.weights for num in weight]
-        # weight_flattened = np.array([flattening_weight]).flatten()
 
         return self.weights
 
@@ -123,7 +130,7 @@ class NeuralNetwork:
         inputs = np.array([0.8])
         actual_output = np.array([.71])
 
-        # print(self.weights)
+        #print(self.weights)
 
         # This makes the column vector of node values for the current layer. It takes the initial layer (inputs)
         # and does the dot product with the first array of weights and that gives the next layer on node values
@@ -156,7 +163,7 @@ class NeuralNetwork:
         mse = np.sqrt(sum / estimated_output.shape[0])
 
         # This is a numpy array lol
-        # print(mse)
+        #print(mse)
 
         return mse[0]
 
@@ -196,14 +203,15 @@ class NeuralNetwork:
             # why do we create random weights at the start of feed forward only to never use them and then create random
             # positions which we put into the nn as weights?? Is it just to test the feed fwd?
 
-            #TODO: This should use self.length_weight_matrix and not the number of insects!!!
-            for particle in range(0,particles.__len__()):
+            # TODO: This should use self.length_weight_matrix and not the number of insects!!!
+
+            for particle in range(0,self.weight_matrix_num_nodes):
                 particles[particle].position = round(random.uniform(-1, 1), 3)
                 particles[particle].velocity = round(random.uniform(-1, 1), 3)
 
             # print(particles[0].position)
             self.assign_weights_from_pso(particles)
-
+            #print(self.weights)
 
             # Get the mean square error for each of these particle
             a = self.feed_forward()
@@ -219,7 +227,7 @@ class NeuralNetwork:
             #compare mse with current best
             if( a< best):
                 best = a
-            print(best)
+            #print(best)
 
 
         # informant_decider = [ np.random.rand(1, numOfParticles) ]
@@ -233,9 +241,9 @@ class NeuralNetwork:
 
 nn = NeuralNetwork(1, 3, 1)
 
-nn.assign_weights()
+#nn.assign_weights()
 
-nn.feed_forward()
+#nn.feed_forward()
 
 nn.PSO(15)
 
