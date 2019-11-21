@@ -70,6 +70,8 @@ class Particle:
         self.personalBest = 100
         self.personalBestPosition = []
         self.informantIndex = -1
+        self.group = -1
+        self.element = -1
 
 
     position = []
@@ -77,7 +79,8 @@ class Particle:
     personalBest = 100
     personalBestPosition = []
     informantIndex = -1
-
+    group = -1
+    element = -1
 
 
 class NeuralNetwork:
@@ -183,7 +186,7 @@ class NeuralNetwork:
     def PSO(self, numOfParticles):
 
         insects = 15
-        alpha = 0.8
+        alpha = 0.75
         beta = 2
         gamma = 2
         delta = 0.1
@@ -236,6 +239,11 @@ class NeuralNetwork:
                 bestPosition = self.currentWeightList
 
             #print(best)
+
+        #This is making the informants. Our plan was split the insects into 4 groups, and the first ~quarter in the
+        #first group, 2nd etc etc. Then each group looks at the member of the group with the lowest MSE achieved, points
+        #to him and makes his personal best the informants best
+
         #copy array
         tempParticles = particles
 
@@ -258,58 +266,82 @@ class NeuralNetwork:
 
        # print(group1[0].personalBest, group1[1].personalBest, group1[2].personalBest)
 
+        #save temporary group informant index (index of the informant in the group)
         groupInformantIndex = -1
 
+        #Loop through each group, reset the MSE, Calculate MSE and the particle with the best MSE is the informant (and has the informantindex)
         group1MSE = 10
         for g in range(group1.__len__()):
             if group1[g].personalBest < group1MSE:
                 groupInformantIndex = g
         for g in range(group1.__len__()):
             group1[g].informantIndex = groupInformantIndex
-
-        i = group1[0].informantIndex
-        print(group1[i].personalBestPosition)
-        print("--------------------")
+            group1[g].group = 0
+            group1[g].element = g
 
         group1MSE = 10
         for g in range(group2.__len__()):
             if group2[g].personalBest < group1MSE:
                 groupInformantIndex = g
-        for g in range(group1.__len__()):
+        for g in range(group2.__len__()):
             group2[g].informantIndex = groupInformantIndex
+            group2[g].group = 1
+            group2[g].element = g
 
-        i = group2[0].informantIndex
-        print(group2[i].personalBestPosition)
-        print("--------------------")
 
         group1MSE = 10
         for g in range(group3.__len__()):
             if group3[g].personalBest < group1MSE:
                 groupInformantIndex = g
-        for g in range(group1.__len__()):
+        for g in range(group3.__len__()):
             group3[g].informantIndex = groupInformantIndex
+            group3[g].group = 2
+            group3[g].element = g
 
-        i = group3[0].informantIndex
-        print(group3[i].personalBestPosition)
-        print("--------------------")
 
         group1MSE = 10
         for g in range(group4.__len__()):
             if group4[g].personalBest < group1MSE:
                 groupInformantIndex = g
-        for g in range(group1.__len__()):
+        for g in range(group4.__len__()):
             group4[g].informantIndex = groupInformantIndex
-
-        i = group4[0].informantIndex
-        print(group4[i].personalBestPosition)
-        print("--------------------")
-        #print(group1MSE, group1BestPosition)
+            group4[g].group = 3
+            group4[g].element = g
 
 
-        #for particle in range(particles.__len__()):
+        b =0
+        c = 0
+        d = 0
 
+        epsilon = .1
 
+        #calculating v_i's,plan here is there's like 15 insects & each one has an array of all its weight matrices
+        #lets say 6 [w_0, ..., w_6], we want to calculate the new v_i which is each w_n for each insect, doing all
+        #the adjustments based on the appropriate changes
 
+        for particle in range(particles.__len__()):
+            print(particles[particle].position)
+            for vel in range(particles[particle].velocity.__len__()):
+                b = round(random.uniform(0, beta),3)
+                c = round(random.uniform(0, gamma),3)
+                d = round(random.uniform(0, delta),3)
+                i = groupList[particles[particle].group][particles[particle].element].informantIndex
+                inf = groupList[particles[particle].group][i].personalBestPosition[0][vel]
+                #print(inf)
+
+                #print(particles[particle].velocity[vel])
+                #print(particles[particle].personalBestPosition[0][vel])
+                particles[particle].velocity[vel] = round((alpha * particles[particle].velocity[vel]) +\
+                                                    (b * (particles[particle].personalBestPosition[0][vel] - (particles[particle].position[vel]))) +\
+                                                    (c * (inf - (particles[particle].position[vel]))) +\
+                                                    (d * ((bestPosition[0][vel]) - (particles[particle].position[vel]))),3)
+
+                #print(particles[particle].velocity[vel])
+            for pos in range(particles[particle].position.__len__()):
+                particles[particle].position[pos] = round(particles[particle].position[pos] + epsilon * particles[particle].velocity[pos],3)
+            print(particles[particle].velocity)
+            print(particles[particle].position)
+            print('-------------------------------')
 
     def __repr__(self):
         return "Input Layer: " + str(self.input_layer) + "\n" + "Hidden layers: " + \
@@ -325,3 +357,4 @@ nn = NeuralNetwork(1, 3, 1)
 nn.PSO(15)
 
 #nn.assign_weights_from_pso()
+
