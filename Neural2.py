@@ -17,6 +17,18 @@ class AFs:
     def identity(x):
         return x
 
+    @staticmethod
+    def tanh(x):
+        return np.tanh(x)
+
+    @staticmethod
+    def cos(x):
+        return np.cos(x)
+
+    @staticmethod
+    def gaussian(x):
+        return np.exp(- ((x**2)/(2)))
+
 
 class Neuron:
 
@@ -29,6 +41,12 @@ class Neuron:
             self.activation_fn = AFs.step
         elif af_name == "sigmoid":
             self.activation_fn = AFs.sigmoid
+        elif af_name == "tanh":
+            self.activation_fn = AFs.tanh
+        elif af_name == "gaussian":
+            self.activation_fn = AFs.gaussian
+        elif af_name == "cos":
+            self.activation_fn = AFs.cos
 
     def get_af(self, dot_prod):
         return self.activation_fn(dot_prod)
@@ -43,6 +61,13 @@ class Neuron:
         elif new_af_name == "sigmoid":
             self.activation_fn = AFs.sigmoid
             self.af_name = "sigmoid"
+        elif new_af_name == "tanh":
+            self.activation_fn = AFs.tanh
+            self.af_name == "tanh"
+        elif new_af_name == "cos":
+            self.activation_fn = AFs.cos
+            self.af_name == "cos"
+
 
     def __repr__(self):
         return self.af_name
@@ -98,7 +123,7 @@ class NeuralNetwork:
             if n == 0:
                 self.input_layer = Layer(args[n], "identity")
             elif n == len(args) - 1:
-                self.output_layer = Layer(args[n], "sigmoid")
+                self.output_layer = Layer(args[n], "tanh")
             else:
                 self.hidden_layer.append(Layer(args[n], "sigmoid"))
 
@@ -183,12 +208,12 @@ class NeuralNetwork:
     def PSO(self, numOfParticles):
 
         alpha = 0.75
-        beta = 2
-        gamma = 2
-        delta = 0.1
+        beta = 4
+        gamma = 3
+        delta = 0.5
         stepsize = 100
-        currentStep = 0
 
+        currentStep = 0
         #alltimebest
         alltimeBest = 100
 
@@ -197,14 +222,10 @@ class NeuralNetwork:
 
 
 
-        currentInput = 0
-        currentOutput = 0
         inputs = self.Read_Data(True)
         outputs = self.Read_Data(False)
         plotList = []
         for index in range(inputs.__len__()):
-            currentInput = index
-            currentOutput = index
             best = 100
             bestEstimatedOutput = 100
             particles = [Particle() for n in range(numOfParticles)]
@@ -214,8 +235,8 @@ class NeuralNetwork:
             # change pos and vel for each particle to random
             for particle in range(0,particles.__len__()):
                 for position in range(0, self.weight_matrix_num_nodes ):
-                    particles[particle].position.append(round(random.uniform(-1, 1), 3))
-                    particles[particle].velocity.append(round(random.uniform(-1, 1), 3))
+                    particles[particle].position.append(round(random.uniform(-2, 2), 3))
+                    particles[particle].velocity.append(round(random.uniform(-2, 2), 3))
 
             #INITIALIZE
 
@@ -227,7 +248,7 @@ class NeuralNetwork:
                     self.currentWeightList = [particles[particle].position]
 
                     # Get the mean square error for each of these particle
-                    currentMSE = self.feed_forward(inputs[currentInput], outputs[currentOutput])
+                    currentMSE = self.feed_forward(inputs[index], outputs[index])
                     particles[particle].currentMSE = currentMSE[0]
                     #record personal best of particle
                     if(currentMSE[0] < particles[particle].personalBest):
@@ -344,7 +365,8 @@ class NeuralNetwork:
                 alltimeBest = best
         print(inputs)
         print(plotList)
-        plt.scatter(inputs, plotList)
+        plt.scatter(inputs, plotList, c='r')
+        plt.scatter(inputs, outputs)
         plt.show()
 
 
@@ -353,17 +375,17 @@ class NeuralNetwork:
                str(self.hidden_layer) + "\n" + "Output Layers: " + str(self.output_layer)
 
     def Read_Data(self, returnTypeInput):
-        filename = '/home/msc/ljj4/PycharmProjects/untitled/src/1in_sine.txt'
+        filename = '/home/msc/ljj4/PycharmProjects/untitled/src/1in_cubic.txt'
         f = open(filename, "r").read().replace("   ", "\n")
         mylist = f.split("\n")
-
+        print (mylist)
         input = []
         output = []
 
         dir = 1
         for i in range(mylist.__len__()):
-            if(i == 0):
-                continue
+            #if(i == 0):
+            #    continue
 
             if mylist[i] != '':
                 if dir > 0:
@@ -372,11 +394,14 @@ class NeuralNetwork:
                     output.append(float(mylist[i]))
                 dir = dir * -1
 
+        print (input)
+        print (output)
+
         if returnTypeInput == True:
             return input
         else:
             return output
 
 nn = NeuralNetwork(1, 3, 1)
-nn.PSO(35)
+nn.PSO(55)
 
