@@ -1,6 +1,6 @@
 import numpy as np
 import random
-
+import matplotlib.pyplot as plt
 
 
 class AFs:
@@ -175,14 +175,13 @@ class NeuralNetwork:
         # This is a numpy array lol
         #print('MSE: ', mse)
 
-        return mse[0]
+        return mse[0], estimated_output
 
     # So i think the position matrix is just the weight matrix. Then, each particle (insect) in the swarm
     # has its own neural network, so its own weights matrix, position, velocity matrix etc.
 
     def PSO(self, numOfParticles):
 
-        insects = 15
         alpha = 0.75
         beta = 2
         gamma = 2
@@ -191,7 +190,7 @@ class NeuralNetwork:
         currentStep = 0
 
         #alltimebest
-        alltimeBest = 100;
+        alltimeBest = 100
 
         # Global fest fitness value found
         bestTarget = 0.005
@@ -202,10 +201,12 @@ class NeuralNetwork:
         currentOutput = 0
         inputs = self.Read_Data(True)
         outputs = self.Read_Data(False)
+        plotList = []
         for index in range(inputs.__len__()):
             currentInput = index
             currentOutput = index
             best = 100
+            bestEstimatedOutput = 100
             particles = [Particle() for n in range(numOfParticles)]
 
             #INITIALIZE
@@ -227,17 +228,17 @@ class NeuralNetwork:
 
                     # Get the mean square error for each of these particle
                     currentMSE = self.feed_forward(inputs[currentInput], outputs[currentOutput])
-                    particles[particle].currentMSE = currentMSE
-
+                    particles[particle].currentMSE = currentMSE[0]
                     #record personal best of particle
-                    if(currentMSE < particles[particle].personalBest):
-                        particles[particle].personalBest = currentMSE
+                    if(currentMSE[0] < particles[particle].personalBest):
+                        particles[particle].personalBest = currentMSE[0]
                         particles[particle].personalBestPosition = self.currentWeightList
 
 
                     #compare mse with current best
-                    if( currentMSE< best):
-                        best = currentMSE
+                    if( currentMSE[0]< best):
+                        best = currentMSE[0]
+                        bestEstimatedOutput = currentMSE[1]
                         bestPosition = self.currentWeightList
 
                 #This is making the informants. Our plan was split the insects into 4 groups, and the first ~quarter in the
@@ -334,12 +335,17 @@ class NeuralNetwork:
                 # print("BEST POSITION", bestPosition)
                 if(currentStep > stepsize or currentStep == 100):
                     break
+            plotList.append(bestEstimatedOutput[0][0])
             print("CURRENT INDEX", index)
             print("CURRENT BEST MSE: ", best)
+            print("CURRENT BEST ESTIMATED OUTPUT", bestEstimatedOutput[0][0])
             print("BEST POSITION", bestPosition)
             if(best < alltimeBest):
                 alltimeBest = best
-        print(alltimeBest)
+        print(inputs)
+        print(plotList)
+        plt.scatter(inputs, plotList)
+        plt.show()
 
 
     def __repr__(self):
@@ -372,5 +378,5 @@ class NeuralNetwork:
             return output
 
 nn = NeuralNetwork(1, 3, 1)
-nn.PSO(15)
+nn.PSO(35)
 
