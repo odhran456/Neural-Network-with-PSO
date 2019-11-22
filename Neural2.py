@@ -2,6 +2,7 @@ import numpy as np
 import random
 
 
+
 class AFs:
 
     @staticmethod
@@ -72,6 +73,7 @@ class Particle:
         self.informantIndex = -1
         self.group = -1
         self.element = -1
+        self.currentMSE = 0
 
 
     position = []
@@ -81,6 +83,7 @@ class Particle:
     informantIndex = -1
     group = -1
     element = -1
+    currentMSE = 0
 
 
 class NeuralNetwork:
@@ -139,9 +142,12 @@ class NeuralNetwork:
         return self.weights
 
 
-    def feed_forward(self):
-        inputs = np.array([0.8])
-        actual_output = np.array([.71])
+    def feed_forward(self, input, output):
+        inputs = np.array([float(input)])
+        actual_output = np.array([float(output)])
+
+        print('INPUT: ', inputs)
+        print('ACTUAL OUTPUT', actual_output)
 
         #print(self.weights)
 
@@ -165,8 +171,8 @@ class NeuralNetwork:
                 prev_matrix = tempMatrix
 
         estimated_output = self.output_layer.activate_neuron(0, np.dot(self.weights[-1], tempMatrix))
-
-        #print(estimated_output)
+        #currentEstimatedOutput = estimated_output[0][0]
+        print("ESTIMATED OUTPUT ",estimated_output)
 
         # calc MSE -> sqrt( (sum of squares) / (num elements)
         sum = 0
@@ -176,7 +182,7 @@ class NeuralNetwork:
         mse = np.sqrt(sum / estimated_output.shape[0])
 
         # This is a numpy array lol
-        #print(mse)
+        print('MSE: ', mse)
 
         return mse[0]
 
@@ -190,21 +196,30 @@ class NeuralNetwork:
         beta = 2
         gamma = 2
         delta = 0.1
-        stepsize = 1
+        stepsize = 100
+        currentStep = 0
 
         # Global fest fitness value found
-
+        bestTarget = 0.005
         best = 100
         bestPosition = []
 
         particles = [Particle() for n in range(numOfParticles)]
 
+        currentInput = 0
+        currentOutput = 0
+        inputs = self.Read_Data(True)
+        outputs = self.Read_Data(False)
+        #print(inputs[currentInput])
+        #print(outputs[currentOutput])
 
         # Make a flat numpy array of the weight matrices in an array called positions
 
         velocities = []
         #for i in range(0, weight_flattened.__len__()):
             #velocities.append(round(random.uniform(-1, 1), 3))
+
+        #INITIALIZE
 
         # change pos and vel for each particle to random
         for particle in range(0,particles.__len__()):
@@ -214,139 +229,170 @@ class NeuralNetwork:
         #print(particles[0].position)
         #print(particles.__len__())
 
+        #INITIALIZE
+
+        while(best > bestTarget or currentStep < stepsize ):
+            currentStep = currentStep + 1
+            for particle in range(particles.__len__()):
+                #set weights by sending positions to pso
+                self.assign_weights_from_pso(particles[particle].position)
+                self.currentWeightList = [particles[particle].position]
+
+                # Get the mean square error for each of these particle
+                currentMSE = self.feed_forward(inputs[currentInput], outputs[currentOutput])
+                particles[particle].currentMSE = currentMSE
+                # currentPosition = self.weights
+                # print(a)
+                #print(self.weights)
+
+                #record personal best of particle
+                if(currentMSE < particles[particle].personalBest):
+                    particles[particle].personalBest = currentMSE
+                    particles[particle].personalBestPosition = self.currentWeightList
 
 
-        for particle in range(particles.__len__()):
-            #set weights by sending positions to pso
-            self.assign_weights_from_pso(particles[particle].position)
-            self.currentWeightList = [particles[particle].position]
+                #compare mse with current best
+                if( currentMSE< best):
+                    best = currentMSE
+                    bestPosition = self.currentWeightList
 
-            # Get the mean square error for each of these particle
-            currentMSE = self.feed_forward()
-            # currentPosition = self.weights
-            # print(a)
-            #print(self.weights)
+                #print(best)
 
-            #record personal best of particle
-            if(currentMSE < particles[particle].personalBest):
-                particles[particle].personalBest = currentMSE
-                particles[particle].personalBestPosition = self.currentWeightList
+            #This is making the informants. Our plan was split the insects into 4 groups, and the first ~quarter in the
+            #first group, 2nd etc etc. Then each group looks at the member of the group with the lowest MSE achieved, points
+            #to him and makes his personal best the informants best
 
+            #copy array
+            tempParticles = particles
 
-            #compare mse with current best
-            if( currentMSE< best):
-                best = currentMSE
-                bestPosition = self.currentWeightList
+            firstQuarter= int(particles.__len__() * 0.25)
+            secondQuarter = firstQuarter *2
+            thirdQuarter = particles.__len__() - firstQuarter
 
-            #print(best)
-
-        #This is making the informants. Our plan was split the insects into 4 groups, and the first ~quarter in the
-        #first group, 2nd etc etc. Then each group looks at the member of the group with the lowest MSE achieved, points
-        #to him and makes his personal best the informants best
-
-        #copy array
-        tempParticles = particles
-
-        firstQuarter= int(particles.__len__() * 0.25)
-        secondQuarter = firstQuarter *2
-        thirdQuarter = particles.__len__() - firstQuarter
-
-        group1 = []
-        group2 = []
-        group3 = []
-        group4 = []
+            group1 = []
+            group2 = []
+            group3 = []
+            group4 = []
 
 
-        group1 = tempParticles[0:firstQuarter]
-        group2 = tempParticles[firstQuarter:secondQuarter]
-        group3 = tempParticles[secondQuarter:thirdQuarter]
-        group4 = tempParticles[thirdQuarter:particles.__len__()]
+            group1 = tempParticles[0:firstQuarter]
+            group2 = tempParticles[firstQuarter:secondQuarter]
+            group3 = tempParticles[secondQuarter:thirdQuarter]
+            group4 = tempParticles[thirdQuarter:particles.__len__()]
 
-        groupList = [group1, group2, group3, group4]
+            groupList = [group1, group2, group3, group4]
 
-       # print(group1[0].personalBest, group1[1].personalBest, group1[2].personalBest)
+           # print(group1[0].personalBest, group1[1].personalBest, group1[2].personalBest)
 
-        #save temporary group informant index (index of the informant in the group)
-        groupInformantIndex = -1
+            #save temporary group informant index (index of the informant in the group)
+            groupInformantIndex = -1
 
-        #Loop through each group, reset the MSE, Calculate MSE and the particle with the best MSE is the informant (and has the informantindex)
-        group1MSE = 10
-        for g in range(group1.__len__()):
-            if group1[g].personalBest < group1MSE:
-                groupInformantIndex = g
-        for g in range(group1.__len__()):
-            group1[g].informantIndex = groupInformantIndex
-            group1[g].group = 0
-            group1[g].element = g
+            #Loop through each group, reset the MSE, Calculate MSE and the particle with the best MSE is the informant (and has the informantindex)
+            groupMSE = 10
+            for g in range(group1.__len__()):
+                if group1[g].personalBest < groupMSE:
+                    groupInformantIndex = g
+                    groupMSE = group1[g].personalBest
+            for g in range(group1.__len__()):
+                group1[g].informantIndex = groupInformantIndex
+                group1[g].group = 0
+                group1[g].element = g
 
-        group1MSE = 10
-        for g in range(group2.__len__()):
-            if group2[g].personalBest < group1MSE:
-                groupInformantIndex = g
-        for g in range(group2.__len__()):
-            group2[g].informantIndex = groupInformantIndex
-            group2[g].group = 1
-            group2[g].element = g
+            groupMSE = 10
+            for g in range(group2.__len__()):
+                if group2[g].personalBest < groupMSE:
+                    groupInformantIndex = g
+                    groupMSE = group2[g].personalBest
+            for g in range(group2.__len__()):
+                group2[g].informantIndex = groupInformantIndex
+                group2[g].group = 1
+                group2[g].element = g
 
+            groupMSE = 10
+            for g in range(group3.__len__()):
+                if group3[g].personalBest < groupMSE:
+                    groupInformantIndex = g
+                    groupMSE = group3[g].personalBest
+            for g in range(group3.__len__()):
+                group3[g].informantIndex = groupInformantIndex
+                group3[g].group = 2
+                group3[g].element = g
 
-        group1MSE = 10
-        for g in range(group3.__len__()):
-            if group3[g].personalBest < group1MSE:
-                groupInformantIndex = g
-        for g in range(group3.__len__()):
-            group3[g].informantIndex = groupInformantIndex
-            group3[g].group = 2
-            group3[g].element = g
+            groupMSE = 10
+            for g in range(group4.__len__()):
+                if group4[g].personalBest < groupMSE:
+                    groupInformantIndex = g
+                    groupMSE = group4[g].personalBest
+            for g in range(group4.__len__()):
+                group4[g].informantIndex = groupInformantIndex
+                group4[g].group = 3
+                group4[g].element = g
 
+            b = 0
+            c = 0
+            d = 0
 
-        group1MSE = 10
-        for g in range(group4.__len__()):
-            if group4[g].personalBest < group1MSE:
-                groupInformantIndex = g
-        for g in range(group4.__len__()):
-            group4[g].informantIndex = groupInformantIndex
-            group4[g].group = 3
-            group4[g].element = g
+            epsilon = .1
 
+            #calculating v_i's,plan here is there's like 15 insects & each one has an array of all its weight matrices
+            #lets say 6 [w_0, ..., w_6], we want to calculate the new v_i which is each w_n for each insect, doing all
+            #the adjustments based on the appropriate changes
 
-        b =0
-        c = 0
-        d = 0
+            for particle in range(particles.__len__()):
+                #print(particles[particle].position)
+                for vel in range(particles[particle].velocity.__len__()):
+                    b = round(random.uniform(0, beta),3)
+                    c = round(random.uniform(0, gamma),3)
+                    d = round(random.uniform(0, delta),3)
+                    i = groupList[particles[particle].group][particles[particle].element].informantIndex
+                    inf = groupList[particles[particle].group][i].personalBestPosition[0][vel]
+                    #print(inf)
 
-        epsilon = .1
-
-        #calculating v_i's,plan here is there's like 15 insects & each one has an array of all its weight matrices
-        #lets say 6 [w_0, ..., w_6], we want to calculate the new v_i which is each w_n for each insect, doing all
-        #the adjustments based on the appropriate changes
-
-        for particle in range(particles.__len__()):
-            print(particles[particle].position)
-            for vel in range(particles[particle].velocity.__len__()):
-                b = round(random.uniform(0, beta),3)
-                c = round(random.uniform(0, gamma),3)
-                d = round(random.uniform(0, delta),3)
-                i = groupList[particles[particle].group][particles[particle].element].informantIndex
-                inf = groupList[particles[particle].group][i].personalBestPosition[0][vel]
-                #print(inf)
-
-                #print(particles[particle].velocity[vel])
-                #print(particles[particle].personalBestPosition[0][vel])
-                particles[particle].velocity[vel] = round((alpha * particles[particle].velocity[vel]) +\
-                                                    (b * (particles[particle].personalBestPosition[0][vel] - (particles[particle].position[vel]))) +\
-                                                    (c * (inf - (particles[particle].position[vel]))) +\
-                                                    (d * ((bestPosition[0][vel]) - (particles[particle].position[vel]))),3)
-
-                #print(particles[particle].velocity[vel])
-            for pos in range(particles[particle].position.__len__()):
-                particles[particle].position[pos] = round(particles[particle].position[pos] + epsilon * particles[particle].velocity[pos],3)
-            print(particles[particle].velocity)
-            print(particles[particle].position)
-            print('-------------------------------')
+                    #print(particles[particle].velocity[vel])
+                    #print(particles[particle].personalBestPosition[0][vel])
+                    particles[particle].velocity[vel] = round((alpha * particles[particle].velocity[vel]) +\
+                                                        (b * (particles[particle].personalBestPosition[0][vel] - (particles[particle].position[vel]))) +\
+                                                        (c * (inf - (particles[particle].position[vel]))) +\
+                                                        (d * ((bestPosition[0][vel]) - (particles[particle].position[vel]))),3)
+                    #print(particles[particle].velocity[vel])
+                for pos in range(particles[particle].position.__len__()):
+                    particles[particle].position[pos] = round(particles[particle].position[pos] + epsilon * particles[particle].velocity[pos],3)
+                #print(particles[particle].velocity)
+              #  print(particles[particle].currentMSE)
+            #print(best, " best step of step ", currentStep)
+            #print("----")
+            #print("estimated_output ", currentEstimatedOutput)
+            if(currentStep > stepsize or currentStep == 100):
+                break
 
     def __repr__(self):
         return "Input Layer: " + str(self.input_layer) + "\n" + "Hidden layers: " + \
                str(self.hidden_layer) + "\n" + "Output Layers: " + str(self.output_layer)
 
+    def Read_Data(self, returnTypeInput):
+        filename = '/home/msc/odm1/PycharmProjects/untitled/bio_cw/data/1in_sine.txt'
+        f = open(filename, "r").read().replace("   ", "\n")
+        mylist = f.split("\n")
+
+        input = []
+        output = []
+
+        dir = 1
+        for i in range(mylist.__len__()):
+            if(i == 0):
+                continue
+
+            if mylist[i] != '':
+                if dir > 0:
+                    input.append(mylist[i])
+                else:
+                    output.append(mylist[i])
+                dir = dir * -1
+
+        if returnTypeInput == True:
+            return input
+        else:
+            return output
 
 nn = NeuralNetwork(1, 3, 1)
 
