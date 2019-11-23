@@ -385,34 +385,71 @@ class NeuralNetwork:
         # END ITERATION THROUGH EACH INPUT AND OUTPUT
 
         # Plot the HNN results against the actual Input and Output values
-        plt.scatter(inputs, plotList, c='r')
-        plt.scatter(inputs, outputs)
+        plt.scatter(inputs, plotList, c='r', s=10, label='Estimated output from PSO')
+        plt.plot(inputs, outputs, linestyle='-', c='black', label='Actual output to be estimated')
+        plt.xlabel('x [unitless]')
+        plt.ylabel('f(x) [unitless]')
+        plt.legend()
         plt.show()
 
 # Reads the data from a textfile, puts the data into a list and returns this list.
 # The Parameter returnTypeInput determines it you want to return the inputs or outputs as a list.
     def Read_Data(self, returnTypeInput):
-        filename = 'C:/Users/loren/Documents/HeriotWatt/Bio/1in_cubic.txt'
-        f = open(filename, "r").read().replace("   ", "\n")
-        mylist = f.split("\n")
+        filename_cubic = '/Users/Odhran/PycharmProjects/MachineLearningPhysicists/1in_cubic.txt'
+        filename_sine = '/Users/Odhran/PycharmProjects/MachineLearningPhysicists/1in_sine.txt'
+        filename_linear = '/Users/Odhran/PycharmProjects/MachineLearningPhysicists/1in_linear.txt'
+        filename_tanh = '/Users/Odhran/PycharmProjects/MachineLearningPhysicists/1in_tanh.txt'
+
+        """
+        PUT FILENAME_(SINE/TANH/LINEAR) IN sine_tanh_cubic TO DO THAT ONE
+        """
+        sine_tanh_cubic = open(filename_tanh, "r").read().replace("   ", "\n")
+        linear = open(filename_linear, "r").read().replace("   ", " ").replace('\t', ' ').replace('\n', ' ')
+
+        mylist_sine_tanh_cubic = sine_tanh_cubic.split("\n")
+        mylist_linear = linear.split(' ')
 
         input = []
         output = []
 
         dir = 1
-        for i in range(mylist.__len__()):
-            #if(i == 0):
-            #    continue
 
-            if mylist[i] != '':
+        """
+        THIS ONE IS FOR CUBIC, TANH & SINE
+        UNCOMMENT FOR CUBIC, TANH & SINE
+        """
+
+        for i in range(mylist_sine_tanh_cubic.__len__()):
+
+            if (i == 0 and mylist_sine_tanh_cubic[i].islower()):
+                continue
+
+            if mylist_sine_tanh_cubic[i] != '':
                 if dir > 0:
-                    input.append(float(mylist[i]))
+                    input.append(float(mylist_sine_tanh_cubic[i]))
                 else:
-                    output.append(float(mylist[i]))
+                    output.append(float(mylist_sine_tanh_cubic[i]))
                 dir = dir * -1
 
-       # print (input)
-       # print (output)
+        """
+        THIS ONE IS FOR LINEAR
+        UNCOMMENT FOR LINEAR
+        """
+
+        # for i in range(mylist_linear.__len__()):
+        #
+        #     if(i == 0 and mylist_linear[i].islower()):
+        #         continue
+        #
+        #     if mylist_linear[i] != '':
+        #         if dir > 0:
+        #             input.append(float(mylist_linear[i]))
+        #         else:
+        #             output.append(float(mylist_linear[i]))
+        #         dir = dir * -1
+
+        print (input)
+        print (output)
 
         if returnTypeInput == True:
             return input
