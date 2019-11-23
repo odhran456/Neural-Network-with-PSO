@@ -131,19 +131,24 @@ class NeuralNetwork:
             else:
                 self.hidden_layer.append(Layer(args[n], "sigmoid"))
 
-        # Make list of values for Hidden layer
+        # Make list of which contains the number of node per hidden layer
         num_nodes_hidden_layers = []
         for hidden_layer in range(0, self.hidden_layer.__len__()):
             num_nodes_hidden_layers.append(self.hidden_layer[hidden_layer].number_of_nodes)
 
-        # Fill list of numbers with values of hidden layers
-        self.weight_matrix_num_nodes = 0
-        self.weight_matrix_num_nodes = self.input_layer.number_of_nodes*num_nodes_hidden_layers[0]
-        if num_nodes_hidden_layers.__len__() > 1:
-            for i in range(0, num_nodes_hidden_layers.__len__() - 1):
-                self.weight_matrix_num_nodes = self.weight_matrix_num_nodes + num_nodes_hidden_layers[i]*num_nodes_hidden_layers[i + 1]
+        # Want to  make a variable that has the number of weights in an ANN for later
+        self.weight_matrix_num_connections = 0
 
-        self.weight_matrix_num_nodes = self.weight_matrix_num_nodes + self.output_layer.number_of_nodes*num_nodes_hidden_layers[-1]
+        # Add the number of weights from going from the input layer to the first hidden layer to the variable
+        self.weight_matrix_num_connections = self.input_layer.number_of_nodes * num_nodes_hidden_layers[0]
+
+        # Only go into this for loop of multiplying hidden layers by each other if you have more than 1 hidden layer
+        if num_nodes_hidden_layers.__len__() > 1:
+            # Add num weights from going from hidden layer[i] -> hidden layer[i+1]
+            for i in range(0, num_nodes_hidden_layers.__len__() - 1):
+                self.weight_matrix_num_connections = self.weight_matrix_num_connections + num_nodes_hidden_layers[i] * num_nodes_hidden_layers[i + 1]
+        # Add the number of weights from going from the final hidden layer to the output layer
+        self.weight_matrix_num_connections = self.weight_matrix_num_connections + self.output_layer.number_of_nodes * num_nodes_hidden_layers[-1]
 
     # Assigns positions it recieves as a parameter to the weights of the PSO and Returns the Weights
     def assign_weights_from_pso(self, position):
@@ -227,7 +232,7 @@ class NeuralNetwork:
 
             # Randomizes the position and velocity of each particle in the particles list
             for particle in range(0,particles.__len__()):
-                for position in range(0, self.weight_matrix_num_nodes ):
+                for position in range(0, self.weight_matrix_num_connections):
                     particles[particle].position.append(round(random.uniform(-2, 2), 3))
                     particles[particle].velocity.append(round(random.uniform(-2, 2), 3))
 
