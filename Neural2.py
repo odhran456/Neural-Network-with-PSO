@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import matplotlib.pyplot as plt
+import csv
 
 
 class AFs:
@@ -84,7 +85,11 @@ class Layer:
         self.neuron_list = [Neuron(afname) for neuron in range(num_nodes)]
     # Returns activation function of layer
     def activate_neuron(self, index, dp):
-        return self.neuron_list[index].get_af(dp)
+            return self.neuron_list[index].get_af(dp)
+
+    def activate_neuron_TwoIn(self, index, dp):
+            return self.neuron_list[index].get_af(dp)
+
     # Changes activation function of layer
     def change_activation_fn(self, index, new_fn):
         self.neuron_list[index].change_af(new_fn)
@@ -129,26 +134,21 @@ class NeuralNetwork:
             elif n == len(args) - 1:
                 self.output_layer = Layer(args[n], "tanh")
             else:
-                self.hidden_layer.append(Layer(args[n], "sigmoid"))
+                self.hidden_layer.append(Layer(args[n], "tanh"))
 
-        # Make list of which contains the number of node per hidden layer
+        # Make list of values for Hidden layer
         num_nodes_hidden_layers = []
         for hidden_layer in range(0, self.hidden_layer.__len__()):
             num_nodes_hidden_layers.append(self.hidden_layer[hidden_layer].number_of_nodes)
 
-        # Want to  make a variable that has the number of weights in an ANN for later
-        self.weight_matrix_num_connections = 0
-
-        # Add the number of weights from going from the input layer to the first hidden layer to the variable
-        self.weight_matrix_num_connections = self.input_layer.number_of_nodes * num_nodes_hidden_layers[0]
-
-        # Only go into this for loop of multiplying hidden layers by each other if you have more than 1 hidden layer
+        # Fill list of numbers with values of hidden layers
+        self.weight_matrix_num_nodes = 0
+        self.weight_matrix_num_nodes = self.input_layer.number_of_nodes*num_nodes_hidden_layers[0]
         if num_nodes_hidden_layers.__len__() > 1:
-            # Add num weights from going from hidden layer[i] -> hidden layer[i+1]
             for i in range(0, num_nodes_hidden_layers.__len__() - 1):
-                self.weight_matrix_num_connections = self.weight_matrix_num_connections + num_nodes_hidden_layers[i] * num_nodes_hidden_layers[i + 1]
-        # Add the number of weights from going from the final hidden layer to the output layer
-        self.weight_matrix_num_connections = self.weight_matrix_num_connections + self.output_layer.number_of_nodes * num_nodes_hidden_layers[-1]
+                self.weight_matrix_num_nodes = self.weight_matrix_num_nodes + num_nodes_hidden_layers[i]*num_nodes_hidden_layers[i + 1]
+
+        self.weight_matrix_num_nodes = self.weight_matrix_num_nodes + self.output_layer.number_of_nodes*num_nodes_hidden_layers[-1]
 
     # Assigns positions it recieves as a parameter to the weights of the PSO and Returns the Weights
     def assign_weights_from_pso(self, position):
@@ -161,14 +161,24 @@ class NeuralNetwork:
         return self.weights
 
     # Recieves input and output values and returns the MSE and estimated output of the HNN
-    def feed_forward(self,input,output):
-        # Recieve the current input and output from the file, passed as parameters
-        inputs = np.array([float(input)])
-        actual_output = np.array([float(output)])
+    def feed_forward(self,input,output, double, index =0):
+        # First check if there are 2 input values given
+        if(double == False):
+            # Recieve the current input and output from the file, passed as parameters
+            inputs = np.array([float(input)])
+            actual_output = np.array([float(output)])
 
-        # This makes the column vector of node values for the current layer. It takes the initial layer (inputs)
-        # and does the dot product with the first array of weights and that gives the next layer on node values
-        currentMatrix = self.hidden_layer[0].activate_neuron(0, np.dot(self.weights[0], inputs))
+            # This makes the column vector of node values for the current layer. It takes the initial layer (inputs)
+            # and does the dot product with the first array of weights and that gives the next layer on node values
+            currentMatrix = self.hidden_layer[0].activate_neuron(0, np.dot(self.weights[0], inputs))
+        else:
+            # Recieve the both inputs and store them as an array also receive output as parameters
+            inputs = np.array([float(input[0][index]), float(input[1][index])])
+            actual_output = np.array([float(output)])
+
+            # Perform the dot product on both inputs, add them up and pass them through the hidden layer as one new input
+            outputColumn = np.dot(self.weights[0], inputs[0]) + np.dot(self.weights[0], inputs[1])
+            currentMatrix = self.hidden_layer[0].activate_neuron(0,outputColumn)
 
         # It's put into a numpy array as in the list it had a null column (shape (n, ) )
         # so it is reshaped into a column vector
@@ -185,7 +195,7 @@ class NeuralNetwork:
 
         # This holds the estimated output of HNN
         estimated_output = self.output_layer.activate_neuron(0, np.dot(self.weights[-1], tempMatrix))
-
+        #print(estimated_output)
         # Calculates the MSE between the estimated output of the HNN and the actual output from the file
         sum = 0
         for i in range(0, estimated_output.shape[0]):
@@ -197,26 +207,34 @@ class NeuralNetwork:
         return mse[0], estimated_output
 
 
-    def PSO(self):
-
+    def PSO(self, double = False, name = " "):
         # The 6 Hyperparameters of the PSO are defined here
-        numOfParticles = 55
+        numOfParticles = 35
         alpha = 0.75
         beta = 4
-        gamma = 3
-        delta = 0.5
-        stepSize = 2
+        gamma = 8
+        delta = 8
+        stepSize = 1000
 
+        #MSE SUM
+        mseSum = 0
         # stepSize loop variables
         currentStep = 0         # The current step the stepSize loop is in.
-        bestTarget = 0.005      # The stepSize loop will stop prematurely if there is a MSE found that was better than this value.
+        bestTarget = 0.002      # The stepSize loop will stop prematurely if there is a MSE found that was better than this value.
 
         # Debugging variables
         alltimeBest = 100       # The all time best MSE of all the particles.
 
         # List that hold the input and output data of a given file.
-        inputs = self.Read_Data(True)
-        outputs = self.Read_Data(False)
+        inputs = self.Read_Data(True, double, name)
+        outputs = self.Read_Data(False, double, name)
+        inputsLen = 0
+
+        if(inputs.__len__() == 2):
+            temp = inputs[0]
+            inputsLen = temp.__len__()
+        else:
+            inputsLen = inputs.__len__()
 
         # Plot variables
         plotList = []           # List that will hold the values to plot, it will hold all the outputs of the HNN
@@ -224,7 +242,7 @@ class NeuralNetwork:
         # START ITERATION THROUGH EACH INPUT AND OUTPUT
 
         # Loops through each input that is given in the inputs[] array, which reads data from a file.
-        for index in range(inputs.__len__()):
+        for index in range(inputsLen):
             # List of particles with the
             particles = [Particle() for n in range(numOfParticles)]
 
@@ -232,7 +250,7 @@ class NeuralNetwork:
 
             # Randomizes the position and velocity of each particle in the particles list
             for particle in range(0,particles.__len__()):
-                for position in range(0, self.weight_matrix_num_connections):
+                for position in range(0, self.weight_matrix_num_nodes ):
                     particles[particle].position.append(round(random.uniform(-2, 2), 3))
                     particles[particle].velocity.append(round(random.uniform(-2, 2), 3))
 
@@ -243,7 +261,6 @@ class NeuralNetwork:
             bestEstimatedOutput = 100
 
             # START ITERATION THROUGH STEPSIZES
-
             while(best > bestTarget or currentStep < stepSize ):
                 currentStep = currentStep + 1
 
@@ -256,7 +273,15 @@ class NeuralNetwork:
                     self.currentWeightList = [particles[particle].position]
 
                     # Get the MSE
-                    currentMSE = self.feed_forward(inputs[index], outputs[index])
+                    # Check if there are 2 inputs given if so send extra parameters to the FeedForward
+                    if(double == False):
+                        #print("FIRST ONE ")
+                        currentMSE = self.feed_forward(inputs[index], outputs[index], False)
+                    else:
+                        #print("SECON DONE")
+                        currentMSE = self.feed_forward(inputs, outputs[index], True, index)
+
+
                     particles[particle].currentMSE = currentMSE[0]
 
                     # Check if personal best of particle is exceeded if so record it
@@ -293,7 +318,7 @@ class NeuralNetwork:
 
                 # Initialize variables used to loop through groups
                 groupInformantIndex = -1    # Initialize the index in which the group informant lies within the group
-                groupMSE = 10               # Initialize the index in which the group informant lies within the group
+                groupMSE = 10
 
                 # LOOP 1
                 # Loop through each group, reset the groupMSE variable
@@ -360,8 +385,9 @@ class NeuralNetwork:
                         b = round(random.uniform(0, beta),3)
                         c = round(random.uniform(0, gamma),3)
                         d = round(random.uniform(0, delta),3)
-
+                        #Get this particle's informant
                         informantIndex = groupList[particles[particle].group][particles[particle].element].informantIndex
+                        #Get this particle's informant bestMSE
                         informantPersonalBestPosition = groupList[particles[particle].group][informantIndex].personalBestPosition[0][vel]
                         particles[particle].velocity[vel] = round((alpha * particles[particle].velocity[vel]) +\
                                                             (b * (particles[particle].personalBestPosition[0][vel] - (particles[particle].position[vel]))) +\
@@ -377,6 +403,8 @@ class NeuralNetwork:
                 #Safety check in case currentStepSize surpases stepSize and creates an infinite loop
                 if(currentStep > stepSize or currentStep == stepSize):
                     break
+                #if(currentStep > stepSize or currentStep == stepSize):
+                 #   break
 
             # END ITERATION THROUGH STEPSIZES
 
@@ -386,81 +414,103 @@ class NeuralNetwork:
             # update and save allTimeBest MSE if better, for debugging purposes
             if(best < alltimeBest):
                 alltimeBest = best
+                #print(alltimeBest)
+            mseSum = mseSum + best
+            #print(bestEstimatedOutput, best)
+        mseAvg = mseSum / 100
+        print(mseAvg)
 
         # END ITERATION THROUGH EACH INPUT AND OUTPUT
 
         # Plot the HNN results against the actual Input and Output values
-        plt.scatter(inputs, plotList, c='r', s=10, label='Estimated output from PSO')
-        plt.plot(inputs, outputs, linestyle='-', c='black', label='Actual output to be estimated')
-        plt.xlabel('x [unitless]')
-        plt.ylabel('f(x) [unitless]')
-        plt.legend()
-        plt.show()
-
-# Reads the data from a textfile, puts the data into a list and returns this list.
-# The Parameter returnTypeInput determines it you want to return the inputs or outputs as a list.
-    def Read_Data(self, returnTypeInput):
-        filename_cubic = '/Users/Odhran/PycharmProjects/MachineLearningPhysicists/1in_cubic.txt'
-        filename_sine = '/Users/Odhran/PycharmProjects/MachineLearningPhysicists/1in_sine.txt'
-        filename_linear = '/Users/Odhran/PycharmProjects/MachineLearningPhysicists/1in_linear.txt'
-        filename_tanh = '/Users/Odhran/PycharmProjects/MachineLearningPhysicists/1in_tanh.txt'
-
-        """
-        PUT FILENAME_(SINE/TANH/LINEAR) IN sine_tanh_cubic TO DO THAT ONE
-        """
-        sine_tanh_cubic = open(filename_tanh, "r").read().replace("   ", "\n")
-        linear = open(filename_linear, "r").read().replace("   ", " ").replace('\t', ' ').replace('\n', ' ')
-
-        mylist_sine_tanh_cubic = sine_tanh_cubic.split("\n")
-        mylist_linear = linear.split(' ')
-
-        input = []
-        output = []
-
-        dir = 1
-
-        """
-        THIS ONE IS FOR CUBIC, TANH & SINE
-        UNCOMMENT FOR CUBIC, TANH & SINE
-        """
-
-        for i in range(mylist_sine_tanh_cubic.__len__()):
-
-            if (i == 0 and mylist_sine_tanh_cubic[i].islower()):
-                continue
-
-            if mylist_sine_tanh_cubic[i] != '':
-                if dir > 0:
-                    input.append(float(mylist_sine_tanh_cubic[i]))
-                else:
-                    output.append(float(mylist_sine_tanh_cubic[i]))
-                dir = dir * -1
-
-        """
-        THIS ONE IS FOR LINEAR
-        UNCOMMENT FOR LINEAR
-        """
-
-        # for i in range(mylist_linear.__len__()):
-        #
-        #     if(i == 0 and mylist_linear[i].islower()):
-        #         continue
-        #
-        #     if mylist_linear[i] != '':
-        #         if dir > 0:
-        #             input.append(float(mylist_linear[i]))
-        #         else:
-        #             output.append(float(mylist_linear[i]))
-        #         dir = dir * -1
-
-        print (input)
-        print (output)
-
-        if returnTypeInput == True:
-            return input
+        if(double):
+            #print(plotList)
+            plt.scatter(range(100), plotList, c='r', label="Estimated Output")
+            plt.scatter(range(100), outputs, c='black', label="Actual Output")
+            #print(outputs)
         else:
-            return output
+            plt.scatter(inputs, plotList, c='r', label="Estimated Output")
+            plt.plot(inputs, outputs, linestyle="-", c='black', label="Actual Output")
+        #self.WriteToCSV(plotList, outputs)
+        plt.legend()
+        plt.xlabel("X [Unitless]")
+        plt.xlabel("F(X) [Unitless]")
+        plt.show()
+    """
+    #CODE USED TO PRINT 2in_Complex.txt outputs to a CSV file to be plot it to a graph in excel
+    def WriteToCSV(self, estimatedOutputs, actualOutputs):
+        print(estimatedOutputs)
+
+        with open('test.csv', mode='w') as csv_file:
+            fieldnames = ['Estimations', 'ActualOutputs']
+            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+            writer.writeheader()
+            for i in range(0,100):
+                y = str(actualOutputs[i])
+                x = str(estimatedOutputs[i][0])
+                writer.writerow({'Estimations': x, 'ActualOutputs': y})
+
+    """
+    # Reads the data from a textfile, puts the data into a list and returns this list.
+    # The Parameter returnTypeInput determines it you want to return the inputs or outputs as a list.
+    # Parameters decide if it reads double or single inputs
+    def Read_Data(self, returnTypeInput, doubles = False, name = ""):
+        path = "C:/Users/loren/Documents/HeriotWatt/Bio/"
+        # Checks if double parameters need to be read in
+        if(doubles == False):
+            filename = name
+            mylist = ""
+            # Read in Linear differently, because it has a different format from the rest
+            if(name == "1in_linear.txt"):
+                f = open(path + name, "r").read().replace("   ", " ").replace('\t', ' ').replace('\n', ' ')
+                mylist = f.split(" ")
+            else:
+                f = open(path + name, "r").read().replace("   ", "\n").replace('\t', " ")
+                mylist = f.split("\n")
+
+            input = []
+            output = []
+            #print(mylist)
+            dir = 1
+            # TODO: fix reading the files
+            for i in range(mylist.__len__()):
+                #if(i == 0):
+                #    continue
+
+                if mylist[i] != '':
+                    if dir > 0:
+                        input.append(float(mylist[i]))
+                    else:
+                        output.append(float(mylist[i]))
+                    dir = dir * -1
+
+            if returnTypeInput == True:
+                return input
+            else:
+                return output
+
+        filename = path + name
+        f = open(filename, "r").read().replace("   ", "\n")
+        mylist = f.split("\n")
+        firstInput = []
+        secondInput = []
+        outPut = []
+
+        for i in range(mylist.__len__() -1):
+            firstInput.append(mylist[i].split()[0])
+            secondInput.append(mylist[i].split()[1])
+            outPut.append(mylist[i].split()[2])
+        #print(firstInput)
+        #print(secondInput)
+        #print(outPut)
+        if(returnTypeInput == True):
+            inputs = [firstInput, secondInput]
+            return inputs
+        return outPut
+
 
 # MAIN FUNCTION
 nn = NeuralNetwork(1, 3, 1)
-nn.PSO()
+# The PSO takes in two values, wether the dataset has 1 or 2 inputs
+# and the name of the dataset you want to run, eg: false, "1inLinear.txt" or True "2in_xor.txt"
+nn.PSO(False, "1in_sine.txt")
