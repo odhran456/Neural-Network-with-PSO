@@ -1,8 +1,11 @@
 import numpy as np
 import random
+import matplotlib.pyplot as plt
+import csv
 
 
 class AFs:
+    # Returns value after calculating the value through the passed activation function
 
     @staticmethod
     def sigmoid(x):
@@ -16,10 +19,23 @@ class AFs:
     def identity(x):
         return x
 
+    @staticmethod
+    def tanh(x):
+        return np.tanh(x)
+
+    @staticmethod
+    def cos(x):
+        return np.cos(x)
+
+    @staticmethod
+    def gaussian(x):
+        return np.exp(- ((x**2)/(2)))
+
 
 class Neuron:
 
     def __init__(self, af_name):
+        # Sets activation function of Neuron
         self.af_name = af_name
 
         if af_name == "identity":
@@ -28,10 +44,18 @@ class Neuron:
             self.activation_fn = AFs.step
         elif af_name == "sigmoid":
             self.activation_fn = AFs.sigmoid
+        elif af_name == "tanh":
+            self.activation_fn = AFs.tanh
+        elif af_name == "gaussian":
+            self.activation_fn = AFs.gaussian
+        elif af_name == "cos":
+            self.activation_fn = AFs.cos
 
+    # Returns activation function of Neuron
     def get_af(self, dot_prod):
         return self.activation_fn(dot_prod)
 
+    # Changes activation function of Neuron
     def change_af(self, new_af_name):
         if new_af_name == "identity":
             self.activation_fn = AFs.identity
@@ -42,6 +66,13 @@ class Neuron:
         elif new_af_name == "sigmoid":
             self.activation_fn = AFs.sigmoid
             self.af_name = "sigmoid"
+        elif new_af_name == "tanh":
+            self.activation_fn = AFs.tanh
+            self.af_name = "tanh"
+        elif new_af_name == "cos":
+            self.activation_fn = AFs.cos
+            self.af_name = "cos"
+
 
     def __repr__(self):
         return self.af_name
@@ -52,14 +83,14 @@ class Layer:
     def __init__(self, num_nodes, afname):
         self.number_of_nodes = num_nodes
         self.neuron_list = [Neuron(afname) for neuron in range(num_nodes)]
-
-    #def __repr__(self):
-        # return "Layer with " + str(self.number_of_nodes) + " neurons: " + str(self.neuron_list)
-
+    # Returns activation function of layer
     def activate_neuron(self, index, dp):
-        # print(self.neuron_list[index])
-        return self.neuron_list[index].get_af(dp)
+            return self.neuron_list[index].get_af(dp)
 
+    def activate_neuron_TwoIn(self, index, dp):
+            return self.neuron_list[index].get_af(dp)
+
+    # Changes activation function of layer
     def change_activation_fn(self, index, new_fn):
         self.neuron_list[index].change_af(new_fn)
 
@@ -68,147 +99,418 @@ class Particle:
         self.position = []
         self.velocity = []
         self.personalBest = 100
+        self.personalBestPosition = []
+        self.informantIndex = -1
+        self.group = -1
+        self.element = -1       # Index of the group
+        self.currentMSE = 0
+
 
     position = []
     velocity = []
     personalBest = 100
-    group
+    personalBestPosition = []
+    informantIndex = -1
+    group = -1
+    element = -1
+    currentMSE = 0
 
 
 class NeuralNetwork:
 
-    def __init__(self, *args):  # e.g.: NN(3,4,5,6,2)
+    def __init__(self, *args):
+        # Initialize HNN variables
         self.hidden_layer = list()
         self.weights = list()
         self.new_weights_attempt = list()
+        self.length_weight_matrix=0
+        self.currentWeightList = []
+
+        # Set the first and last args given as the input and output layers
+        # Every element between the first and last arg is a hidden layer
         for n in range(len(args)):
             if n == 0:
                 self.input_layer = Layer(args[n], "identity")
             elif n == len(args) - 1:
-                self.output_layer = Layer(args[n], "sigmoid")
+                self.output_layer = Layer(args[n], "tanh")
             else:
-                self.hidden_layer.append(Layer(args[n], "sigmoid"))
+                self.hidden_layer.append(Layer(args[n], "tanh"))
 
-    def assign_weights(self):
-        prev_layer = self.input_layer
-        for layer in self.hidden_layer:
-            self.weights.append(np.random.rand(layer.number_of_nodes, prev_layer.number_of_nodes))
-            prev_layer = layer
-        self.weights.append(np.random.rand(self.output_layer.number_of_nodes, prev_layer.number_of_nodes))
-        #print(self.weights)
+        # Make list of values for Hidden layer
+        num_nodes_hidden_layers = []
+        for hidden_layer in range(0, self.hidden_layer.__len__()):
+            num_nodes_hidden_layers.append(self.hidden_layer[hidden_layer].number_of_nodes)
 
-    def assign_weights_from_pso(self, particle):
-        # are the rows & columns being reshpaed in the right way ?? ??? ?
-        self.new_weights_attempt.append(np.array([particle[0].position, particle[1].position, particle[2].position]).reshape(3,1))
-        self.new_weights_attempt.append(np.array([particle[3].position, particle[4].position, particle[5].position]).reshape(1,3))
-        # print(self.new_weights_attempt[0].shape)
+        # Fill list of numbers with values of hidden layers
+        self.weight_matrix_num_nodes = 0
+        self.weight_matrix_num_nodes = self.input_layer.number_of_nodes*num_nodes_hidden_layers[0]
+        if num_nodes_hidden_layers.__len__() > 1:
+            for i in range(0, num_nodes_hidden_layers.__len__() - 1):
+                self.weight_matrix_num_nodes = self.weight_matrix_num_nodes + num_nodes_hidden_layers[i]*num_nodes_hidden_layers[i + 1]
+
+        self.weight_matrix_num_nodes = self.weight_matrix_num_nodes + self.output_layer.number_of_nodes*num_nodes_hidden_layers[-1]
+
+    # Assigns positions it recieves as a parameter to the weights of the PSO and Returns the Weights
+    def assign_weights_from_pso(self, position):
+        # TODO: fix the hardcoding of indeces of positions to the weights of the PSO
+        self.new_weights_attempt = []
+        self.new_weights_attempt.append(np.array([position[0], position[1], position[2]]).reshape(3,1))
+        self.new_weights_attempt.append(np.array([position[3], position[4], position[5]]).reshape(1,3))
         self.weights = self.new_weights_attempt
-        #print(self.weights)
+
         return self.weights
 
+    # Recieves input and output values and returns the MSE and estimated output of the HNN
+    def feed_forward(self,input,output, double, index =0):
+        # First check if there are 2 input values given
+        if(double == False):
+            # Recieve the current input and output from the file, passed as parameters
+            inputs = np.array([float(input)])
+            actual_output = np.array([float(output)])
 
-    def feed_forward(self):
-        inputs = np.array([0.8])
-        actual_output = np.array([.71])
+            # This makes the column vector of node values for the current layer. It takes the initial layer (inputs)
+            # and does the dot product with the first array of weights and that gives the next layer on node values
+            currentMatrix = self.hidden_layer[0].activate_neuron(0, np.dot(self.weights[0], inputs))
+        else:
+            # Recieve the both inputs and store them as an array also receive output as parameters
+            inputs = np.array([float(input[0][index]), float(input[1][index])])
+            actual_output = np.array([float(output)])
 
-        # print(self.weights)
+            # Perform the dot product on both inputs, add them up and pass them through the hidden layer as one new input
+            outputColumn = np.dot(self.weights[0], inputs[0]) + np.dot(self.weights[0], inputs[1])
+            currentMatrix = self.hidden_layer[0].activate_neuron(0,outputColumn)
 
-        # This makes the column vector of node values for the current layer. It takes the initial layer (inputs)
-        # and does the dot product with the first array of weights and that gives the next layer on node values
-
-        currentMatrix = self.hidden_layer[0].activate_neuron(0, np.dot(self.weights[0], inputs))
-
-        # It's put into a numpy array as in the list it had a null column (shape (n, ) ), which is bad,
-        # so remake into a numpy nd-array and reshape it into a column vector
+        # It's put into a numpy array as in the list it had a null column (shape (n, ) )
+        # so it is reshaped into a column vector
         tempMatrix = np.array([currentMatrix]).transpose()
 
+        # Sets a previous Matrix
         prev_matrix = tempMatrix
-        # print(prev_matrix)
 
-        # for loop - check which weight matrix to multiply with
-
+        # If there are more than 1 hidden layers, loop through them and perform the matrix multiplications
         if self.hidden_layer.__len__() > 1:
             for i in range(1, self.weights.__len__() - 1):
                 tempMatrix = self.hidden_layer[i].activate_neuron(0, np.dot(self.weights[i], prev_matrix))
                 prev_matrix = tempMatrix
 
+        # This holds the estimated output of HNN
         estimated_output = self.output_layer.activate_neuron(0, np.dot(self.weights[-1], tempMatrix))
-
         #print(estimated_output)
-
-        # calc MSE -> sqrt( (sum of squares) / (num elements)
+        # Calculates the MSE between the estimated output of the HNN and the actual output from the file
         sum = 0
         for i in range(0, estimated_output.shape[0]):
             sum = sum + ((actual_output[i] - estimated_output[i])**2)
 
         mse = np.sqrt(sum / estimated_output.shape[0])
 
-        # This is a numpy array lol
-        # print(mse)
-
-        return mse[0]
-
-    # So i think the position matrix is just the weight matrix. Then, each particle (insect) in the swarm
-    # has its own neural network, so its own weights matrix, position, velocity matrix etc.
+        # returns the MSE and the estimated output.
+        return mse[0], estimated_output
 
 
-    def PSO(self, numOfParticles):
+    def PSO(self, double = False, name = " "):
+        # The 6 Hyperparameters of the PSO are defined here
+        numOfParticles = 35
+        alpha = 0.75
+        beta = 4
+        gamma = 8
+        delta = 8
+        stepSize = 1000
 
-        insects = 15
-        alpha = 0.8
-        beta = 2
-        gamma = 2
-        delta = 0.1
-        stepsize = 1
-        best = 100
+        #MSE SUM
+        mseSum = 0
+        # stepSize loop variables
+        currentStep = 0         # The current step the stepSize loop is in.
+        bestTarget = 0.002      # The stepSize loop will stop prematurely if there is a MSE found that was better than this value.
 
-        particles = [Particle() for n in range(numOfParticles)]
+        # Debugging variables
+        alltimeBest = 100       # The all time best MSE of all the particles.
 
-            # Make a flat numpy array of the weight matrices in an array called positions
-        flattening_weight = [num for weight in self.weights for num in weight]
-        weight_flattened = np.array([flattening_weight]).flatten()
+        # List that hold the input and output data of a given file.
+        inputs = self.Read_Data(True, double, name)
+        outputs = self.Read_Data(False, double, name)
+        inputsLen = 0
 
-        velocities = []
-        #for i in range(0, weight_flattened.__len__()):
-            #velocities.append(round(random.uniform(-1, 1), 3))
+        if(inputs.__len__() == 2):
+            temp = inputs[0]
+            inputsLen = temp.__len__()
+        else:
+            inputsLen = inputs.__len__()
 
+        # Plot variables
+        plotList = []           # List that will hold the values to plot, it will hold all the outputs of the HNN
 
-        for insect in range(0, insects - 1):
-            # change pos and vel for each particle to random
+        # START ITERATION THROUGH EACH INPUT AND OUTPUT
 
-            # why do we create random weights at the start of feed forward only to never use them and then create random
-            # positions which we put into the nn as weights?? Is it just to test the feed fwd?
+        # Loops through each input that is given in the inputs[] array, which reads data from a file.
+        for index in range(inputsLen):
+            # List of particles with the
+            particles = [Particle() for n in range(numOfParticles)]
+
+            # START PSO INITIALIZATION
+
+            # Randomizes the position and velocity of each particle in the particles list
             for particle in range(0,particles.__len__()):
-                particles[particle].position = round(random.uniform(-1, 1), 3)
-                particles[particle].velocity = round(random.uniform(-1, 1), 3)
-            # Get the mean square error for each of these particle
-            # print(particles[0].position)
-            self.assign_weights_from_pso(particles)
+                for position in range(0, self.weight_matrix_num_nodes ):
+                    particles[particle].position.append(round(random.uniform(-2, 2), 3))
+                    particles[particle].velocity.append(round(random.uniform(-2, 2), 3))
 
-            a = self.feed_forward()
-            #record personal best of particle
-            if(a < particle.personalBest):
-                particle.personalBest = a
+            # END PSO INITIALIZATION
 
-            #compare mse with current best
-            if( a< best):
-                best = a
-            print(best)
+            #Variables that store the best MSE and the corresponding output from the HNN
+            best = 100
+            bestEstimatedOutput = 100
+
+            # START ITERATION THROUGH STEPSIZES
+            while(best > bestTarget or currentStep < stepSize ):
+                currentStep = currentStep + 1
+
+                # loop through each particle's positions, assign the HNN weights to this position
+                # Run the feedforward with the new weights and record the best feedforward value, MSE and position for each particle
+                # and also record the global best feedforward value, MSE and position.
+                for particle in range(particles.__len__()):
+                    # Set weights by sending positions to pso
+                    self.assign_weights_from_pso(particles[particle].position)
+                    self.currentWeightList = [particles[particle].position]
+
+                    # Get the MSE
+                    # Check if there are 2 inputs given if so send extra parameters to the FeedForward
+                    if(double == False):
+                        #print("FIRST ONE ")
+                        currentMSE = self.feed_forward(inputs[index], outputs[index], False)
+                    else:
+                        #print("SECON DONE")
+                        currentMSE = self.feed_forward(inputs, outputs[index], True, index)
 
 
+                    particles[particle].currentMSE = currentMSE[0]
+
+                    # Check if personal best of particle is exceeded if so record it
+                    if(currentMSE[0] < particles[particle].personalBest):
+                        particles[particle].personalBest = currentMSE[0]
+                        particles[particle].personalBestPosition = self.currentWeightList
 
 
-    def __repr__(self):
-        return "Input Layer: " + str(self.input_layer) + "\n" + "Hidden layers: " + \
-               str(self.hidden_layer) + "\n" + "Output Layers: " + str(self.output_layer)
+                    #Compare MSE with current global best MSE
+                    if( currentMSE[0]< best):
+                        best = currentMSE[0]
+                        bestEstimatedOutput = currentMSE[1]
+                        bestPosition = self.currentWeightList
+
+                # START FORMING GROUPS AND ASSIGNING INFORMANTS
+
+                # This is making the informants. Our plan was split the particle into 4 groups, and the first ~quarter in the
+                # first group, 2nd etc etc. Then each group looks at the member of the group with the (best) lowest MSE achieved,
+                # this particle becomes the informant and everyone in the group follows this informant.
+
+                # Checking the particles array size and split it into 4 quarters
+                firstQuarter= int(particles.__len__() * 0.25)
+                secondQuarter = firstQuarter *2
+                thirdQuarter = particles.__len__() - firstQuarter
+
+                # Creating and filling the 4 groups the particles will be split into
+                group1 = particles[0:firstQuarter]
+                group2 = particles[firstQuarter:secondQuarter]
+                group3 = particles[secondQuarter:thirdQuarter]
+                group4 = particles[thirdQuarter:particles.__len__()]
+
+                # Create a list that hold all the groups and their values
+                groupList = [group1, group2, group3, group4]
+
+                # Initialize variables used to loop through groups
+                groupInformantIndex = -1    # Initialize the index in which the group informant lies within the group
+                groupMSE = 10
+
+                # LOOP 1
+                # Loop through each group, reset the groupMSE variable
+                # Calculate MSE and the particle and choose the particle with the best MSE as the informant
+
+                # LOOP 2
+                # Assign everyone in the group the informant and pass them the index of their informant within the group
+
+                # Loop through group 1
+                for g in range(group1.__len__()):
+                    if group1[g].personalBest < groupMSE:
+                        groupInformantIndex = g
+                        groupMSE = group1[g].personalBest
+                for g in range(group1.__len__()):
+                    group1[g].informantIndex = groupInformantIndex
+                    group1[g].group = 0
+                    group1[g].element = g
+
+                # Loop through group 2
+                groupMSE = 10
+                for g in range(group2.__len__()):
+                    if group2[g].personalBest < groupMSE:
+                        groupInformantIndex = g
+                        groupMSE = group2[g].personalBest
+                for g in range(group2.__len__()):
+                    group2[g].informantIndex = groupInformantIndex
+                    group2[g].group = 1
+                    group2[g].element = g
+
+                # Loop through group 3
+                groupMSE = 10
+                for g in range(group3.__len__()):
+                    if group3[g].personalBest < groupMSE:
+                        groupInformantIndex = g
+                        groupMSE = group3[g].personalBest
+                for g in range(group3.__len__()):
+                    group3[g].informantIndex = groupInformantIndex
+                    group3[g].group = 2
+                    group3[g].element = g
+
+                # Loop through group 4
+                groupMSE = 10
+                for g in range(group4.__len__()):
+                    if group4[g].personalBest < groupMSE:
+                        groupInformantIndex = g
+                        groupMSE = group4[g].personalBest
+                for g in range(group4.__len__()):
+                    group4[g].informantIndex = groupInformantIndex
+                    group4[g].group = 3
+                    group4[g].element = g
+
+                # END FORMING GROUPS AND ASSIGNING INFORMANTS
+
+                #Initialize and set Epsilon
+                epsilon = .1
+
+                # START CALCULATE NEW POSITIONS
+
+                # For each particle change the velocity and update the position by calculating Vi
+                for particle in range(particles.__len__()):
+                    # Change the velocity of each particle
+                    for vel in range(particles[particle].velocity.__len__()):
+                        # Randomize b, c, d to a number between 0 and beta, gamma, delta respectively.
+                        b = round(random.uniform(0, beta),3)
+                        c = round(random.uniform(0, gamma),3)
+                        d = round(random.uniform(0, delta),3)
+                        #Get this particle's informant
+                        informantIndex = groupList[particles[particle].group][particles[particle].element].informantIndex
+                        #Get this particle's informant bestMSE
+                        informantPersonalBestPosition = groupList[particles[particle].group][informantIndex].personalBestPosition[0][vel]
+                        particles[particle].velocity[vel] = round((alpha * particles[particle].velocity[vel]) +\
+                                                            (b * (particles[particle].personalBestPosition[0][vel] - (particles[particle].position[vel]))) +\
+                                                            (c * (informantPersonalBestPosition - (particles[particle].position[vel]))) +\
+                                                            (d * ((bestPosition[0][vel]) - (particles[particle].position[vel]))),3)
+
+                    # Calculate Vi for each position in a particle
+                    for pos in range(particles[particle].position.__len__()):
+                        particles[particle].position[pos] = round(particles[particle].position[pos] + epsilon * particles[particle].velocity[pos],3)
+
+                # END CALCULATE NEW POSITIONS
+
+                #Safety check in case currentStepSize surpases stepSize and creates an infinite loop
+                if(currentStep > stepSize or currentStep == stepSize):
+                    break
+                #if(currentStep > stepSize or currentStep == stepSize):
+                 #   break
+
+            # END ITERATION THROUGH STEPSIZES
+
+            # Add bestEstimatedOutput for this INPUT into the plotList
+            plotList.append(bestEstimatedOutput[0][0])
+
+            # update and save allTimeBest MSE if better, for debugging purposes
+            if(best < alltimeBest):
+                alltimeBest = best
+                #print(alltimeBest)
+            mseSum = mseSum + best
+            #print(bestEstimatedOutput, best)
+        mseAvg = mseSum / 100
+        print(mseAvg)
+
+        # END ITERATION THROUGH EACH INPUT AND OUTPUT
+
+        # Plot the HNN results against the actual Input and Output values
+        if(double):
+            #print(plotList)
+            plt.scatter(range(100), plotList, c='r', label="Estimated Output")
+            plt.scatter(range(100), outputs, c='black', label="Actual Output")
+            #print(outputs)
+        else:
+            plt.scatter(inputs, plotList, c='r', label="Estimated Output")
+            plt.plot(inputs, outputs, linestyle="-", c='black', label="Actual Output")
+        #self.WriteToCSV(plotList, outputs)
+        plt.legend()
+        plt.xlabel("X [Unitless]")
+        plt.xlabel("F(X) [Unitless]")
+        plt.show()
+    """
+    #CODE USED TO PRINT 2in_Complex.txt outputs to a CSV file to be plot it to a graph in excel
+    def WriteToCSV(self, estimatedOutputs, actualOutputs):
+        print(estimatedOutputs)
+
+        with open('test.csv', mode='w') as csv_file:
+            fieldnames = ['Estimations', 'ActualOutputs']
+            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+            writer.writeheader()
+            for i in range(0,100):
+                y = str(actualOutputs[i])
+                x = str(estimatedOutputs[i][0])
+                writer.writerow({'Estimations': x, 'ActualOutputs': y})
+
+    """
+    # Reads the data from a textfile, puts the data into a list and returns this list.
+    # The Parameter returnTypeInput determines it you want to return the inputs or outputs as a list.
+    # Parameters decide if it reads double or single inputs
+    def Read_Data(self, returnTypeInput, doubles = False, name = ""):
+        path = "C:/Users/loren/Documents/HeriotWatt/Bio/"
+        # Checks if double parameters need to be read in
+        if(doubles == False):
+            filename = name
+            mylist = ""
+            # Read in Linear differently, because it has a different format from the rest
+            if(name == "1in_linear.txt"):
+                f = open(path + name, "r").read().replace("   ", " ").replace('\t', ' ').replace('\n', ' ')
+                mylist = f.split(" ")
+            else:
+                f = open(path + name, "r").read().replace("   ", "\n").replace('\t', " ")
+                mylist = f.split("\n")
+
+            input = []
+            output = []
+            #print(mylist)
+            dir = 1
+            # TODO: fix reading the files
+            for i in range(mylist.__len__()):
+                #if(i == 0):
+                #    continue
+
+                if mylist[i] != '':
+                    if dir > 0:
+                        input.append(float(mylist[i]))
+                    else:
+                        output.append(float(mylist[i]))
+                    dir = dir * -1
+
+            if returnTypeInput == True:
+                return input
+            else:
+                return output
+
+        filename = path + name
+        f = open(filename, "r").read().replace("   ", "\n")
+        mylist = f.split("\n")
+        firstInput = []
+        secondInput = []
+        outPut = []
+
+        for i in range(mylist.__len__() -1):
+            firstInput.append(mylist[i].split()[0])
+            secondInput.append(mylist[i].split()[1])
+            outPut.append(mylist[i].split()[2])
+        #print(firstInput)
+        #print(secondInput)
+        #print(outPut)
+        if(returnTypeInput == True):
+            inputs = [firstInput, secondInput]
+            return inputs
+        return outPut
 
 
+# MAIN FUNCTION
 nn = NeuralNetwork(1, 3, 1)
-
-nn.assign_weights()
-
-nn.feed_forward()
-
-nn.PSO(15)
-
-#nn.assign_weights_from_pso()
+# The PSO takes in two values, wether the dataset has 1 or 2 inputs
+# and the name of the dataset you want to run, eg: false, "1inLinear.txt" or True "2in_xor.txt"
+nn.PSO(False, "1in_sine.txt")
